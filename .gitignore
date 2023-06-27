@@ -1,3 +1,4 @@
 nabu/data
-nabu/ckpts 
+nabu/ckpts/*
 nabu/vocabs
+*.pkl
