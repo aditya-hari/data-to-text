@@ -2,3 +2,13 @@ nabu/data
 nabu/ckpts/*
 nabu/vocabs
 *.pkl
+*.log
+*.sh
+scraping/scripts/translated_sents_de.txt
+scraping/scripts/translated_sents_ga.txt
+*.pyc
+*.txt
+*.json
+src/seq2seq/transformers/
+src/seq2seq/negative_pairs.txt
+src/seq2seq/positive_pairs.txt

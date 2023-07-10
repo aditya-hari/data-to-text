@@ -1,9 +1,0 @@
-==========================================
-SLURM_JOB_ID = 923513
-SLURM_NODELIST = gnode067
-SLURM_JOB_GPUS = 2,3
-==========================================
-Some weights of the model checkpoint at bert-base-multilingual-cased were not used when initializing BertModel: ['cls.predictions.transform.dense.bias', 'cls.predictions.transform.LayerNorm.bias', 'cls.seq_relationship.bias', 'cls.predictions.transform.LayerNorm.weight', 'cls.predictions.transform.dense.weight', 'cls.predictions.bias', 'cls.seq_relationship.weight']
-- This IS expected if you are initializing BertModel from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
-- This IS NOT expected if you are initializing BertModel from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
-slurmstepd: error: *** JOB 923513 ON gnode067 CANCELLED AT 2023-06-22T06:56:52 ***

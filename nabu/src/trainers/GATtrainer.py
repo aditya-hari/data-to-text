@@ -10,11 +10,12 @@ import pickle
 import time
 
 import tensorflow as tf
+import numpy as np
 from tqdm import tqdm
 
 from src.DataLoader import GetGATDataset
 from src.models.GraphAttentionModel import TransGAT
-from src.utils.metrics import LossLayer
+from src.utils.metrics import LossLayer, transformer_loss
 from src.utils.model_utils import CustomSchedule, _set_up_dirs
 from src.utils.rogue import rouge_n
 from src.utils.model_utils import process_results
@@ -101,38 +102,40 @@ def _train_gat_trans(args):
     model.trainable = False
     results = []
     ref_target = []
-    eval_results = open(EvalResultsFile, 'w+')
+    #eval_results = open(EvalResultsFile, 'w+')
     if steps is None:
       dev_set = eval_set
     else:
       dev_set = eval_set.take(steps)
-
+    losses = [] 
     for (batch, (nodes, labels, node1, node2, targets)) in tqdm(enumerate(dev_set)):
       predictions = model(nodes, labels, node1,
-                          node2, targ=None, mask=None)
-      pred = [(predictions['outputs'].numpy().tolist())]
+                          node2, targ=targets, mask=None)
+      eval_loss = transformer_loss(predictions, targets, 0.1, tgt_vocab_size)
+      losses.append(eval_loss)
+      # pred = [(predictions['outputs'].numpy().tolist())]
 
-      if args.sentencepiece == 'True':
-        for i in range(len(pred[0])):
-          sentence = (tgt_vocab.DecodeIds(list(pred[0][i])))
-          sentence = sentence.partition("<start>")[2].partition("<end>")[0]
-          eval_results.write(sentence + '\n')
-          ref_target.append(reference.readline())
-          results.append(sentence)
-      else:
-        for i in pred:
-          sentences = tgt_vocab.sequences_to_texts(i)
-          sentence = [j.partition("<start>")[2].partition("<end>")[0] for j in sentences]
-          for w in sentence:
-            eval_results.write((w + '\n'))
-            ref_target.append(reference.readline())
-            results.append(w)
+    #   if args.sentencepiece == 'True':
+    #     for i in range(len(pred[0])):
+    #       sentence = (tgt_vocab.DecodeIds(list(pred[0][i])))
+    #       sentence = sentence.partition("<start>")[2].partition("<end>")[0]
+    #       eval_results.write(sentence + '\n')
+    #       ref_target.append(reference.readline())
+    #       results.append(sentence)
+    #   else:
+    #     for i in pred:
+    #       sentences = tgt_vocab.sequences_to_texts(i)
+    #       sentence = [j.partition("<start>")[2].partition("<end>")[0] for j in sentences]
+    #       for w in sentence:
+    #         eval_results.write((w + '\n'))
+    #         ref_target.append(reference.readline())
+    #         results.append(w)
 
-    rogue = (rouge_n(results, ref_target))
-    eval_results.close()
+    # rogue = (rouge_n(results, ref_target))
+    # eval_results.close()
     model.trainable = True
 
-    return rogue
+    return np.mean(losses)
 
   # Eval function
   def test_step():
@@ -196,9 +199,9 @@ def _train_gat_trans(args):
                          f" Loss: {train_loss.result()} Perplexity: {ppl.numpy()} \n")
 
         if batch % args.eval_steps == 0:
-          metric_dict = eval_step(5)
+          loss_val = eval_step(5)
           print('\n' + '---------------------------------------------------------------------' + '\n')
-          print('ROGUE {:.4f}'.format(metric_dict))
+          print('Eval loss {:.4f}'.format(loss_val))
           print('\n' + '---------------------------------------------------------------------' + '\n')
 
         if batch % args.checkpoint == 0:
