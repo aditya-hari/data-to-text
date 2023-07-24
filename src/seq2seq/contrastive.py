@@ -32,8 +32,8 @@ class ContrastiveLoss(torch.nn.Module):
         loss = torch.mean((1 - y) * torch.pow(cos_sim, 2) + y * torch.pow(torch.nn.functional.relu(self.margin - cos_sim), 2))
         return loss
 
-rdf_tokenizer = AutoTokenizer.from_pretrained("roberta-base")
-rdf_model = AutoModel.from_pretrained("/scratch/checkpoint-400000").to('cuda')
+rdf_tokenizer = sbert_tokenizer
+rdf_model = AutoModel.from_pretrained("sentence-transformers/all-distilroberta-v1").to('cuda')
 
 rdf_tokenizer.add_special_tokens({'additional_special_tokens': ['<TSP>']})
 rdf_model.resize_token_embeddings(len(rdf_tokenizer))
@@ -78,12 +78,14 @@ eval_dataset = CustomDataset(training_pairs[33352*8:], train_labels[33352*8:], r
 train_dataloader = DataLoader(train_dataset, batch_size=8, shuffle=False)
 eval_dataloader = DataLoader(eval_dataset, batch_size=8, shuffle=False)
 
-optimizer = torch.optim.Adam(rdf_model.parameters(), lr=5e-5)
+optimizer = torch.optim.Adam(rdf_model.parameters(), lr=1e-6)
 loss_fn = ContrastiveLoss()
+
+train_losses = [] 
+eval_losses = []
 
 for epoch in range(5):
     pb_train = tqdm.tqdm(total=len(train_dataloader))
-    train_losses = [] 
     for i, batch in enumerate(train_dataloader):
         optimizer.zero_grad()
         rdf_encodings, text_encodings, labels = batch
@@ -101,7 +103,7 @@ for epoch in range(5):
         optimizer.step()
 
         if(i % 100 == 0):
-            wandb.log({"train_loss": loss.item()})
+            wandb.log({"train_loss": np.mean(train_losses)})
 
         pb_train.set_description("Epoch: {}, Loss: {}".format(epoch, np.mean(train_losses)))
         pb_train.update(1)
@@ -109,7 +111,6 @@ for epoch in range(5):
     print("Epoch: {}, Train Loss: {}".format(epoch, np.mean(train_losses)))
 
     pb_eval = tqdm.tqdm(total=len(eval_dataloader))
-    eval_losses = []
     for i, batch in enumerate(eval_dataloader):
         rdf_encodings, text_encodings, labels = batch
         rdf_encodings = {key: val.to('cuda').squeeze() for key, val in rdf_encodings.items()}
@@ -124,10 +125,10 @@ for epoch in range(5):
         eval_losses.append(loss.item())
 
         if(i % 100 == 0):
-            wandb.log({"eval_loss": loss.item()})
+            wandb.log({"eval_loss": np.mean(eval_losses)})
             
         pb_eval.set_description("Epoch: {}, Loss: {}".format(epoch, np.mean(eval_losses)))
         pb_eval.update(1)
     pb_eval.close()
     print("Epoch: {}, Eval Loss: {}".format(epoch, np.mean(eval_losses)))
-    torch.save(rdf_model.state_dict(), '/scratch/rdf_model_{}.pt'.format(epoch))
+    torch.save(rdf_model.state_dict(), '/scratch/rdf_not_model_{}.pt'.format(epoch))

@@ -25,6 +25,7 @@ import logging
 import math
 import os
 import sys
+import wandb 
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Optional
@@ -46,7 +47,8 @@ from transformers import (
     TrainingArguments,
     is_torch_tpu_available,
     set_seed,
-    RobertaConfig
+    RobertaConfig,
+    EarlyStoppingCallback,
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
@@ -62,6 +64,7 @@ logger = logging.getLogger(__name__)
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_MASKED_LM_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
+wandb.init(project="mlm")
 
 @dataclass
 class ModelArguments:
@@ -391,7 +394,7 @@ def main():
         tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
     elif model_args.model_name_or_path:
         tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
-        tokenizer.additional_special_tokens({'additional_special_tokens': ['<TSP>']})
+        tokenizer.add_special_tokens({'additional_special_tokens': ['<TSP>']})
     else:
         raise ValueError(
             "You are instantiating a new tokenizer from scratch. This is not supported by this script."
@@ -602,6 +605,7 @@ def main():
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics if training_args.do_eval and not is_torch_tpu_available() else None,
+        callbacks = [EarlyStoppingCallback(early_stopping_patience=10)],
         preprocess_logits_for_metrics=preprocess_logits_for_metrics
         if training_args.do_eval and not is_torch_tpu_available()
         else None,
